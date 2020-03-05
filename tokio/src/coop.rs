@@ -69,6 +69,7 @@ thread_local! {
 /// Run the given closure with a cooperative task budget.
 ///
 /// Enabling budgeting when it is already enabled is a no-op.
+#[inline(always)]
 pub(crate) fn budget<F, R>(f: F) -> R
 where
     F: FnOnce() -> R,
