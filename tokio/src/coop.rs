@@ -73,28 +73,26 @@ pub(crate) fn budget<F, R>(f: F) -> R
 where
     F: FnOnce() -> R,
 {
-    struct Guard;
-    impl Drop for Guard {
-        fn drop(&mut self) {
-            HITS.with(|hits| {
-                hits.set(UNCONSTRAINED);
-            });
-        }
-    }
-
-    let _guard = HITS.with(|hits| {
+    HITS.with(move |hits| {
         if hits.get() != UNCONSTRAINED {
             // We are already being budgeted.
             //
             // Arguably this should be an error, but it can happen "correctly"
             // such as with block_on + LocalSet, so we make it a no-op.
-            return None;
+            return f();
+        }
+
+        struct Guard<'a>(&'a Cell<usize>);
+        impl<'a> Drop for Guard<'a> {
+            fn drop(&mut self) {
+                self.0.set(UNCONSTRAINED);
+            }
         }
 
         hits.set(BUDGET);
-        Some(Guard)
-    });
-    f()
+        let _guard = Guard(hits);
+        f()
+    })
 }
 
 cfg_blocking_impl! {
